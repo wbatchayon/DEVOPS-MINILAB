@@ -19,40 +19,6 @@ Le projet doit permettre à un collègue de comprendre :
 - à quel moment ?
 - pourquoi on ne remplace pas un outil par un autre ?
 
-## Structure du Projet
-
-```
-devops-minilab/
-├── README.md
-├── vagrant/
-│   ├── Vagrantfile
-│   └── scripts/
-│       └── bootstrap.sh
-├── terraform/
-│   ├── main.tf
-│   ├── variables.tf
-│   ├── terraform.tfvars
-│   └── outputs.tf
-├── ansible/
-│   ├── inventory/
-│   │   └── hosts.ini
-│   ├── playbooks/
-│   │   ├── prepare-system.yml
-│   │   ├── install-docker.yml
-│   │   └── install-kubernetes.yml
-│   └── roles/
-│       ├── common/
-│       ├── docker/
-│       └── kubernetes/
-├── kubernetes/
-│   ├── init-master.sh
-│   ├── join-worker.sh
-│   └── deployments/
-│       └── nginx-demo.yaml
-└── scripts/
-    ├── setup-all.sh
-    └── cleanup-all.sh
-```
 
 ## Prérequis sur ta Machine Hôte
 
@@ -84,3 +50,117 @@ vagrant plugin install vagrant-proxmox
 git clone https://wbatchayon/DEVOPS-MINILAB.git
 cd DEVOPS-MINILAB
 ```
+
+### 2. Préparer l'ISO Ubuntu sur Proxmox et Créer un Template Propre (ex ubuntu)
+
+**Sur ton interface Proxmox :**
+
+1. Va dans `pve` → `Shell` où en CLI sur ta machine hôte avec `ssh root@TON_IP_PROXMOX`
+
+2. Créer le script
+    ```bash
+    cat > create-k8s-template.sh << 'EOFSCRIPT'
+    #!/bin/bash
+    set -e
+
+    VMID=9000
+    TEMPLATE_NAME="ubuntu-2404-k8s"
+    STORAGE="local-lvm"
+
+    echo "Téléchargement de l'image Ubuntu Cloud..."
+    wget -O /tmp/ubuntu-24.04.img https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
+
+    echo "Création du cloud-init personnalisé..."
+    mkdir -p /var/lib/vz/snippets
+    cat > /var/lib/vz/snippets/k8s-prep.yaml << 'EOF'
+    #cloud-config
+    users:
+      - name: ubuntu
+        passwd: $6$rounds=4096$saltsalt$lQzrUCM8RVqK8E5R7jlLfB5K.Jg.1O0F9p5R8L5K8L5K8L5K8L5K8L
+        lock_passwd: false
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        shell: /bin/bash
+        groups: users, admin
+
+    ssh_pwauth: true
+    disable_root: false
+
+    package_update: true
+    package_upgrade: true
+    packages:
+      - qemu-guest-agent
+      - openssh-server
+      - curl
+      - wget
+      - vim
+      - net-tools
+
+    runcmd:
+      - systemctl enable qemu-guest-agent
+      - systemctl start qemu-guest-agent
+      - echo "ubuntu:ubuntu" | chpasswd
+      - sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+      - sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+      - sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+      - sed -i 's/PubkeyAuthentication no/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+      - systemctl restart sshd
+      - echo "Cloud-init completed" > /tmp/cloud-init-done
+
+    final_message: "Le système est prêt. SSH disponible avec ubuntu/ubuntu"
+    EOF
+
+    echo "Création de la VM..."
+    qm create $VMID \
+      --name $TEMPLATE_NAME \
+      --memory 2048 \
+      --cores 2 \
+      --net0 virtio,bridge=vmbr0
+
+    echo "Import du disque..."
+    qm importdisk $VMID /tmp/ubuntu-24.04.img $STORAGE
+
+    echo "Configuration du disque..."
+    qm set $VMID \
+      --scsihw virtio-scsi-pci \
+      --scsi0 $STORAGE:vm-$VMID-disk-0
+
+    echo "Configuration Cloud-Init..."
+    qm set $VMID \
+      --ide2 $STORAGE:cloudinit \
+      --boot c \
+      --bootdisk scsi0 \
+      --serial0 socket \
+      --vga serial0
+
+    echo "Configuration utilisateur de base..."
+    qm set $VMID \
+      --ciuser ubuntu \
+      --cipassword ubuntu \
+      --ipconfig0 ip=dhcp
+
+    echo "Activation de l'agent..."
+    qm set $VMID --agent enabled=1
+
+    echo "Ajout du script cloud-init personnalisé..."
+    qm set $VMID --cicustom "user=local:snippets/k8s-prep.yaml"
+
+    echo "Conversion en template..."
+    qm template $VMID
+
+    echo "Nettoyage..."
+    rm -f /tmp/ubuntu-24.04.img
+
+    echo ""
+    echo "Template $VMID créé avec succès !"
+    echo ""
+    echo "Vérification de la configuration :"
+    qm config $VMID | grep -E "agent|cicustom|ciuser"
+    echo ""
+    EOFSCRIPT
+    ```
+
+3. Éxecuter le script
+    ```bash
+    chmod +x create-k8s-template.sh
+    ./create-k8s-template.sh
+    ```
