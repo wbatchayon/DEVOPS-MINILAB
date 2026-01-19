@@ -164,3 +164,17 @@ cd DEVOPS-MINILAB
     chmod +x create-k8s-template.sh
     ./create-k8s-template.sh
     ```
+
+## Démarches d'Exécution et Correction d'éventuelle erreur
+
+Après avoir effectué les configurations initiales, rendez-vous dans le dossier [docs](docs/Exécution.md) pour suivre les étapes d’exécution du projet.
+
+Si vous rencontrez des problèmes, consultez le fichier [Troubleshooting](docs/automatization.md). Il explique les erreurs les plus courantes et comment les résoudre.
+
+## License
+
+Ce projet a été développé par **@wbatchayon** et est distribué sous la **Mozilla Public License Version 2.0**.
+
+Vous êtes libre d’utiliser, modifier et redistribuer ce projet, y compris à des fins commerciales, conformément aux termes de Mozilla Public License Version 2.0.
+
+Pour plus d’informations, veuillez consulter le fichier [LICENSE](LICENSE) présent à la racine du dépôt ou vous référer au texte officiel de Mozilla Public License Version 2.0.
