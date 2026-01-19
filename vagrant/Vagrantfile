@@ -1,0 +1,54 @@
+# -*- mode: ruby -*-
+
+Vagrant.configure("2") do |config|
+  
+  # Configuration Proxmox Provider
+  config.vm.provider :proxmox do |proxmox|
+    proxmox.endpoint = 'Your_Proxmox_Url'
+    proxmox.token_id     = "Your_Proxmox_Token_ID"
+    proxmox.token_secret = "Your_Proxmox_Token"
+    proxmox.ssh_user         = "Your_Proxmox_SSH_User"
+    proxmox.ssh_password     = "Your_Proxmox_SSH_Password"
+    proxmox.insecure = true
+    proxmox.vm_type = :lxc
+  end
+
+  # VM 1 : K8S Master
+  config.vm.define "k8s-master" do |master|
+    master.vm.hostname = "k8s-master"
+    master.vm.box = "generic/ubuntu2404"
+    
+    master.vm.provider :proxmox do |pm|
+      pm.vm_name = "k8s-master"
+      pm.node = "pve"
+      pm.vm_memory = 4096
+      pm.vm_cores = 2
+      pm.vm_disk_size = "32G"
+      pm.vm_storage = "local-lvm"
+      pm.vm_network_bridge = "vmbr0"
+    end
+    
+    master.vm.network "private_network", ip: "x.x.x.100"
+  end
+
+  # VM 2 : K8S Worker
+  config.vm.define "k8s-worker" do |worker|
+    worker.vm.hostname = "k8s-worker"
+    worker.vm.box = "generic/ubuntu2404"
+    
+    worker.vm.provider :proxmox do |pm|
+      pm.vm_name = "k8s-worker"
+      pm.node = "pve"
+      pm.vm_memory = 4096
+      pm.vm_cores = 2
+      pm.vm_disk_size = "32G"
+      pm.vm_storage = "local-lvm"
+      pm.vm_network_bridge = "vmbr0"
+    end
+    
+    worker.vm.network "private_network", ip: "x.x.x.101"
+  end
+
+  # Provisioning avec script bash
+  config.vm.provision "shell", path: "scripts/bootstrap.sh"
+end
