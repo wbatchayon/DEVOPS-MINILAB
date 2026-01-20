@@ -167,9 +167,22 @@ cd DEVOPS-MINILAB
 
 ## Démarches d'Exécution et Correction d'éventuelle erreur
 
-Après avoir effectué les configurations initiales, rendez-vous dans le dossier [docs](docs/Exécution.md) pour suivre les étapes d’exécution du projet.
+Après avoir effectué les configurations initiales, rendez-vous dans le dossier [docs](docs/Exécution.md) pour suivre les étapes d’exécution du projet. Si vous voulez faire du monitoring, vous pouvez également suivre les étapes décrites dans le fichier [Monitoring](docs/Monitoring.md). Le fichier [Alertes](docs/Alertes.md) vous aidera a mieux comprendre comment fonctionne la création/gestion des alertes avec promethus, grafana, node_export et alert_manager.
 
 Si vous rencontrez des problèmes, consultez le fichier [Troubleshooting](docs/automatization.md). Il explique les erreurs les plus courantes et comment les résoudre.
+
+
+## Nettoyage
+
+```bash
+# Détruire les VM avec Terraform
+cd terraform
+terraform destroy
+
+# Ou avec Vagrant
+cd vagrant
+vagrant destroy
+```
 
 ## License
 
