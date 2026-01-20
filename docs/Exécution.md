@@ -171,3 +171,12 @@ kubectl get pods -A
 # Vérifier les services
 kubectl get svc
 ```
+
+## Résumé des Rôles
+
+| Outil | Rôle | Exemple d'Action |
+|-------|------|------------------|
+| **Vagrant** | Créer les VM | `vagrant up` |
+| **Terraform** | Gérer l'infrastructure | `terraform apply` |
+| **Ansible** | Configurer les systèmes | Installer Docker, K8s |
+| **Kubernetes** | Orchestrer les conteneurs | Déployer nginx |
