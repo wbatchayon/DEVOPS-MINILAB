@@ -1,0 +1,61 @@
+---
+- name: Installation de Node Exporter
+  hosts: all
+  become: yes
+  tasks:
+    - name: Créer l'utilisateur node_exporter
+      user:
+        name: node_exporter
+        system: yes
+        shell: /bin/false
+        create_home: no
+
+    - name: Télécharger Node Exporter
+      unarchive:
+        src: https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
+        dest: /tmp
+        remote_src: yes
+
+    - name: Installer le binaire Node Exporter
+      copy:
+        src: /tmp/node_exporter-1.7.0.linux-amd64/node_exporter
+        dest: /usr/local/bin/
+        mode: '0755'
+        remote_src: yes
+
+    - name: Créer le service systemd Node Exporter
+      copy:
+        dest: /etc/systemd/system/node_exporter.service
+        content: |
+          [Unit]
+          Description=Node Exporter
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          User=node_exporter
+          Group=node_exporter
+          Type=simple
+          ExecStart=/usr/local/bin/node_exporter
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Démarrer Node Exporter
+      systemd:
+        name: node_exporter
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    - name: Vérifier Node Exporter
+      uri:
+        url: "http://localhost:9100/metrics"
+        status_code: 200
+      register: result
+      retries: 3
+      delay: 5
+
+    - name: Afficher le statut
+      debug:
+        msg: "Node Exporter installé sur {{ inventory_hostname }}"
