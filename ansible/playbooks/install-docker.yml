@@ -1,0 +1,67 @@
+---
+- name: Installation de containerd
+  hosts: k8s_cluster
+  become: yes
+  tasks:
+    - name: Supprimer les anciennes versions
+      apt:
+        name:
+          - docker
+          - docker-engine
+          - docker.io
+          - containerd
+          - runc
+        state: absent
+
+    - name: Création du répertoire pour les clés GPG
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Ajout de la clé GPG Docker
+      shell: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        chmod a+r /etc/apt/keyrings/docker.gpg
+      args:
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Ajout du dépôt Docker
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+
+    - name: Installation de containerd
+      apt:
+        name: containerd.io
+        state: present
+        update_cache: yes
+
+    - name: Création du répertoire de configuration
+      file:
+        path: /etc/containerd
+        state: directory
+
+    - name: Génération de la configuration par défaut
+      shell: containerd config default > /etc/containerd/config.toml
+      args:
+        creates: /etc/containerd/config.toml
+
+    - name: Configuration de SystemdCgroup
+      lineinfile:
+        path: /etc/containerd/config.toml
+        regexp: '^\s*SystemdCgroup = false'
+        line: '            SystemdCgroup = true'
+        state: present
+
+    - name: Redémarrage de containerd
+      systemd:
+        name: containerd
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+
+    - name: Affichage de fin
+      debug:
+        msg: "Containerd installé et configuré"

@@ -1,0 +1,55 @@
+---
+- name: Installation de Kubernetes
+  hosts: k8s_cluster
+  become: yes
+  tasks:
+    - name: Création du répertoire pour les clés GPG
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Ajout de la clé GPG Kubernetes
+      shell: |
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Ajout du dépôt Kubernetes
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"
+        state: present
+        filename: kubernetes
+
+    - name: Installation des composants Kubernetes
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        update_cache: yes
+
+    - name: Hold des paquets Kubernetes
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    - name: Activation de kubelet
+      systemd:
+        name: kubelet
+        enabled: yes
+        state: started
+
+    - name: Vérification de la version
+      command: kubeadm version -o short
+      register: k8s_version
+      changed_when: false
+
+    - name: Affichage de la version
+      debug:
+        msg: "Kubernetes {{ k8s_version.stdout }} installé"
